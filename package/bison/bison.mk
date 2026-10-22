@@ -14,6 +14,6 @@ BISON_CPE_ID_VENDOR = gnu
 BISON_MAKE = $(MAKE1)
 HOST_BISON_DEPENDENCIES = host-m4
 HOST_BISON_CONF_OPTS = --enable-relocatable
-HOST_BISON_CONF_ENV = ac_cv_libtextstyle=no
+HOST_BISON_CONF_ENV = ac_cv_libtextstyle=no CFLAGS="$(HOST_CFLAGS) -std=gnu17"
 
 $(eval $(host-autotools-package))
