@@ -1,0 +1,35 @@
+From: RV32 OP-TEE bring-up
+Subject: [PATCH] lib: utils: mpxy: reqfwd: count the status word in the TEE response length
+
+When the TEE domain has no more forwarded messages, the REQFWD driver
+exits the domain from inside the RETRIEVE ecall. The return value of that
+ecall is delivered to the resumed caller of the TEE channel, so it is the
+TEE_COMMUNICATE response length seen by the supervisor. reqfwd->ack_len
+holds only the register payload the OP-TEE transform wrote after the
+4-byte RPMI status word, so the supervisor received one register too few.
+On RV64 only the upper half of a3 is lost, which the OP-TEE UID check does
+not notice. On RV32 a3 arrives as zero and the OP-TEE driver fails with
+"api uid mismatch".
+
+--- a/lib/utils/mpxy/fdt_mpxy_rpmi_reqfwd.c
++++ b/lib/utils/mpxy/fdt_mpxy_rpmi_reqfwd.c
+@@ -256,7 +256,18 @@
+ 				dispatcher = mpxy_tee_get_dispatcher(tee_channel);
+ 				if (dispatcher && dispatcher->ops &&
+ 				    dispatcher->ops->domain_exit) {
+-					*ack_len = reqfwd->ack_len;
++					/*
++					 * This ecall's return value lands in
++					 * the resumed TEE channel caller as the
++					 * TEE_COMMUNICATE response length. The
++					 * transform only counted the register
++					 * payload it wrote after the status
++					 * word, so add the status word here.
++					 * Without it the caller gets one
++					 * register less (a3 = 0 on RV32).
++					 */
++					*ack_len = reqfwd->ack_len ?
++						   reqfwd->ack_len + sizeof(u32) : 0;
+ 					reqfwd->ack_len = 0;
+ 					/* TEE use case: save state before domain_exit */
+ 					reqfwd->is_waiting_message = true;
